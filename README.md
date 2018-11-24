@@ -10,14 +10,14 @@ Akciok is a repository for processing grocery store specials and making decision
 
 For example if you want to buy chicken thighs, ginger, and kohlrabi:
 
-1. Run `gen_excel.py 12 43 44.` 
-2. Paste the resulting excel formula into the grocery shopping row, in B102. 
-3. Copy it with ctrl-c.
-4. Highlight the other cells in that row
+1. Run `gen_excel.py 12 43 44` 
+2. Paste the resulting excel formula into the grocery shopping row, into `B102`
+3. Copy it with `ctrl-c`
+4. Highlight the other cells in that row, `C102:J102`
 5. Paste special with `ctrl-shift-v`
-6. Check the "formulae" checkbox and uncheck the other checkboxes. 
+6. Check the "formulae" checkbox and uncheck the other checkboxes, then hit "Ok"
 
-The cheapest store will be highlighted in green. The numbers don't reflect the exact amount you will pay at the store because it's assumed you'll buy 1kg of most items, but the smallest number is still going to be the cheapest.
+The cheapest store will be highlighted in green. The numbers don't reflect the exact amount you will pay at the store because it assumes you'll buy 1kg of everything, but the smallest number is still going to be the cheapest.
 
 ## The problem
 
