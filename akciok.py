@@ -17,7 +17,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import logging
 #logging.disable()
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s') #filename=f'log-akciok.txt', 
+logging.basicConfig(level=logging.DEBUG, format='%(lineno)d - %(asctime)s - %(levelname)s - %(message)s') #filename=f'log-akciok.txt', 
 logging.debug("Start of program.")
 
 parser = argparse.ArgumentParser(description='Scrape specials from grocery store websites.')
@@ -68,14 +68,15 @@ def setupFiles(files):
             print(f'\nMissing parsing data for {website.capitalize()}:\n')
             files['parsewebsite'][website] = adjustWebsiteParser()
             logging.debug(f'files["parsewebsite"]: {files["parsewebsite"]}')
-            #why is updating all the websites instead of just the one
     if 'blacklist' not in files.keys(): # ['eggplant', 'liver']
         files['blacklist'] = []
     if 'whitelist' not in files.keys(): # {'onion' : 150, 'chicken breast' : 1200}
         files['whitelist'] = {}
     return files
 
-def adjustWebsiteParser(website={}):
+def adjustWebsiteParser(website=None):
+    if not website:
+        website={}
     '''What tags to look for in each website + whether a bus pass is needed to access the store'''
     website['itemdelineator'] = input('Html to look for at the start of each item: ')
     website['unitprice'] = input('Html element for unitprice: ')
@@ -83,6 +84,7 @@ def adjustWebsiteParser(website={}):
     website['itemname'] = input('Html element for item name ')
     website['categories'] = input('Html element for categories: ')
     website['buspass'] = again('Buspass required for store? [y/N] ')
+    logging.debug(f'website: {website}')
     return website
 
 def again(msg='Again? [y/N]', default="no"):
