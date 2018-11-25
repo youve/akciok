@@ -6,11 +6,11 @@ import json
 import argparse
 import sys
 import os
-import random
+#import random
 import pprint
 import readline
 import requests
-import getkey
+#import getkey
 import urllib
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -45,6 +45,7 @@ def loadFiles():
     allFiles = {}
     for file in jsonFiles:
         if os.path.isfile(getDirectory() + file):
+            logging.debug(f'Loading {file}')
             with open(getDirectory() + file, "r") as f:
                 allFiles[os.path.splitext(file)[0]] = json.load(f)
         else:
@@ -112,26 +113,24 @@ def findCategories(website):
     res = requests.get(memory['websites'][website]['cats'])
     res.raise_for_status()
     websiteSoup = BeautifulSoup(res.text, "html.parser")
-    if memory['parsewebsite'][website]['categories']:
-        cats = websiteSoup.select(memory['parsewebsite'][website]['categories'])
-        categoriesToSearch = {}
-        for cat in cats:
-            catName = cat.getText().strip().lower()
-            if catName not in memory['categoryBlacklist']:
-                if catName not in memory['categoryWhitelist']:
-                    if again(f"Do you care about {catName.capitalize()} [Y/n]", default="yes"):
-                        logging.debug(f"cat.attrs['href']: {cat.attrs['href']}")
-                        logging.debug(f"catName: {catName}")
+    cats = websiteSoup.select(memory['parsewebsite'][website]['categories'])
+    categoriesToSearch = {}
+    for cat in cats:
+        catName = cat.getText().strip().lower()
+        if catName not in memory['categoryBlacklist']:
+            if catName not in memory['categoryWhitelist']:
+                if again(f"Do you care about {catName.capitalize()} [Y/n]", default="yes"):
+                    try:
                         url = cat.attrs['href']
-                        if not url.startswith('http'):
-                            url = urllib.parse.urljoin(memory['websites'][website]['base'], url)
-                        categoriesToSearch[catName] = url
-                        memory['categoryWhitelist'].append(catName)
-                    else:
-                        logging.debug(f"Blacklisting {catName}")
-                        memory['categoryBlacklist'].append(catName)
-    else:
-        categoriesToSearch = {'All', ''}
+                    except: #Penny
+                        url = memory['websites'][website]['cats'] + '?c=' + cats[0].input.attrs['value']
+                    if not url.startswith('http'):
+                        url = urllib.parse.urljoin(memory['websites'][website]['base'], url)
+                    categoriesToSearch[catName] = url
+                    memory['categoryWhitelist'].append(catName)
+                else:
+                    logging.debug(f"Blacklisting {catName}")
+                    memory['categoryBlacklist'].append(catName)
     return categoriesToSearch
 
 def findItems(category):

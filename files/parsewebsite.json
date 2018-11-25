@@ -25,7 +25,7 @@
     },
     "penny": {
         "buspass": false,
-        "categories": "",
+        "categories": "label.custom-checkbox",
         "itemdelineator": "<div class=\"card card-hover h-100 rounded-0 cursor-pointer\" data-toggle=\"modal\" data-target=\"#productDetailsModal1\">",
         "itemname": "<h5 class=\"m-0 well-dark-grey-color modal-article-title bigger-line-height\">NAME</h5>",
         "kgprice": "<div class=\"text-muted col-12 px-0 h6 d-block text-right offers-module-text-font\" style=\"height: 17px;\">\\n<span>100</span> <span>gramm</span> = <span>100</span>",
