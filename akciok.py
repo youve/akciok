@@ -11,12 +11,14 @@ import pprint
 import readline
 import requests
 import getkey
+import urllib
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys    
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import logging
+
 #logging.disable()
 logging.basicConfig(level=logging.DEBUG, format='%(lineno)d - %(asctime)s - %(levelname)s - %(message)s') #filename=f'log-akciok.txt', 
 logging.debug("Start of program.")
@@ -42,8 +44,11 @@ def loadFiles():
     jsonFiles.sort()
     allFiles = {}
     for file in jsonFiles:
-        with open(getDirectory() + file, "r") as f:
-            allFiles[os.path.splitext(file)[0]] = json.loads(f.readline().rstrip())
+        if os.path.isfile(getDirectory() + file):
+            with open(getDirectory() + file, "r") as f:
+                allFiles[os.path.splitext(file)[0]] = json.load(f)
+        else:
+            logging.debug(f'{getDirectory() + file} is not a file.')
     return allFiles
 
 def saveFiles(files):
@@ -57,9 +62,10 @@ def setupFiles(files):
     logging.debug(f'Files: {files}')
     while not files['websites'] or again("Add a new website? [y/N]"):
         siteName = input('Name of site: ')
-        urlHead = input('Enter a URL to visit: ')
+        baseURL = input('Base URL of site: ')
+        catsURL = input('Enter a URL to find categories: ')
         urlTail = input('What should be appended to URLs from this site? (e.g. ?sort=cheapest')
-        files['websites'][siteName] = [urlHead, urlTail]
+        files['websites'][siteName] = {'base' : baseURL, 'cats' : catsURL, 'tail' : urlTail}
     if 'parsewebsite' not in files.keys():
         files['parsewebsite'] = {}
     for website in files['websites']:
@@ -69,10 +75,14 @@ def setupFiles(files):
             print(f'\nMissing parsing data for {website.capitalize()}:\n')
             files['parsewebsite'][website] = adjustWebsiteParser()
             logging.debug(f'files["parsewebsite"]: {files["parsewebsite"]}')
-    if 'blacklist' not in files.keys(): # ['eggplant', 'liver']
-        files['blacklist'] = []
-    if 'whitelist' not in files.keys(): # {'onion' : 150, 'chicken breast' : 1200}
-        files['whitelist'] = {}
+    if 'foodBlacklist' not in files.keys(): # ['eggplant', 'liver']
+        files['foodBlacklist'] = []
+    if 'foodWhitelist' not in files.keys(): # {'onion' : 150, 'chicken breast' : 1200}
+        files['foodWhitelist'] = {}
+    if 'categoryBlacklist' not in files.keys(): # ['Kertészet']
+        files['categoryBlacklist'] = []
+    if 'categoryWhitelist' not in files.keys(): # ['Zöldség, gyümölcs', 'Hús, hal, felvágott']
+        files['categoryWhitelist'] = [] 
     return files
 
 def adjustWebsiteParser(website=None):
@@ -91,31 +101,58 @@ def adjustWebsiteParser(website=None):
 def again(msg='Again? [y/N]', default="no"):
     '''return true or false'''
     whatDo = input(msg + ' ') or default
-    if whatDo[0].upper() == 'yes'.upper():
+    if whatDo[0].upper() == 'Y':
         return True
     else:
         return False
 
+def findCategories(website):
+    '''Returns a dictionary of categories to search: {name: url}'''
+    logging.info(f'Finding categories in {website}')
+    res = requests.get(memory['websites'][website]['cats'])
+    res.raise_for_status()
+    websiteSoup = BeautifulSoup(res.text, "html.parser")
+    if memory['parsewebsite'][website]['categories']:
+        cats = websiteSoup.select(memory['parsewebsite'][website]['categories'])
+        categoriesToSearch = {}
+        for cat in cats:
+            catName = cat.getText().strip().lower()
+            if catName not in memory['categoryBlacklist']:
+                if catName not in memory['categoryWhitelist']:
+                    if again(f"Do you care about {catName.capitalize()} [Y/n]", default="yes"):
+                        logging.debug(f"cat.attrs['href']: {cat.attrs['href']}")
+                        logging.debug(f"catName: {catName}")
+                        url = cat.attrs['href']
+                        if not url.startswith('http'):
+                            url = urllib.parse.urljoin(memory['websites'][website]['base'], url)
+                        categoriesToSearch[catName] = url
+                    else:
+                        logging.debug(f"Blacklisting {catName}")
+                        memory['categoryBlacklist'].append(catName)
+    else:
+        categoriesToSearch = {'All', ''}
+    return categoriesToSearch
+
+def findItems(category):
+    '''Returns a dictionary of items that might be bought'''
+
 memory = setupFiles(loadFiles())
 logging.debug(pprint.pprint(memory))
-saveFiles(memory)
+catsToSearch = {}
+
+for website in memory['websites'].keys():
+    catsToSearch[website] = findCategories(website)
+
+logging.debug(f'catsToSearch: {catsToSearch}')
 
 #TODO: For each website
 
     #load the website
 
-    #detect categories
-        #if category not in blacklist
-            #if category not in whitelist
-                #ask about category
-            #if category in whitelist
-                #traverse category
-
-
     #traverse categories
 
-        #if item not in blacklist            
-            #if item not in whitelist
+        #if item not in foodBlacklist            
+            #if item not in foodWhitelist
                 #ask about item: 
                     #yes at this price
                     #yes at this price but not this week
@@ -138,3 +175,5 @@ saveFiles(memory)
 
 #foreach menu
     #display store, shopping list, price, supercook recipes
+
+saveFiles(memory)
