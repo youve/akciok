@@ -1,1 +1,22 @@
-{"aldi": ["https://www.aldi.hu/hu/ajanlatok", ""], "auchan": ["https://www.auchan.hu/akcio/", "/mind/48"], "lidl": ["https://www.lidl.hu/hu/Ajanlataink.htm", ""], "penny": ["https://www.penny.hu/offers", ""], "tesco": ["https://tesco.hu/akciok/akcios-termekek/", "?sort=cheapest"]}
+{
+    "aldi": [
+        "https://www.aldi.hu/hu/ajanlatok",
+        ""
+    ],
+    "auchan": [
+        "https://www.auchan.hu/akcio/",
+        "/mind/48"
+    ],
+    "lidl": [
+        "https://www.lidl.hu/hu/Ajanlataink.htm",
+        ""
+    ],
+    "penny": [
+        "https://www.penny.hu/offers",
+        ""
+    ],
+    "tesco": [
+        "https://tesco.hu/akciok/akcios-termekek/",
+        "?sort=cheapest"
+    ]
+}

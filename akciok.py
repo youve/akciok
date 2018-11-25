@@ -11,6 +11,7 @@ import pprint
 import readline
 import requests
 import getkey
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys    
 from selenium.webdriver.support.ui import WebDriverWait
@@ -49,7 +50,7 @@ def saveFiles(files):
     '''Save everything we learned in json format for next time'''
     for file in files:
         with open(getDirectory() + file + '.json', "w") as f:
-            f.write(json.dumps(files[file]))
+            f.write(json.dumps(files[file], indent=4, sort_keys=True))
 
 def setupFiles(files):
     '''Create all the files we need'''
