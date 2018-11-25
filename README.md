@@ -4,6 +4,11 @@ Akciok is a repository for processing grocery store specials and making decision
 
 ## The Present
 
+### akciok.py
+
+akciok.py is a work in progress. So far it builds a list of local grocery websites, scans these websites for categories, and learns which categories the user cares about.
+
+### Spreadsheet and Python script
 `2018_prices.xlsx` is a spreadsheet that tracks how much various items cost at various stores in Hungary. It provides feedback on which food items provide the most calories / Hungarian Forint, the most potassium/serving, and which foods are the cheapest non-carbohydrate sources of energy.
 
 `gen_excel.py` is a script that accompanies the spreadsheet that generates a formula for estimating the cost of buying a list of items at that store. The formula works in libreoffice calc, and I imagine it would work in openoffice and excel as well. 
@@ -19,7 +24,7 @@ For example if you want to buy chicken thighs, ginger, and kohlrabi:
 
 The cheapest store will be highlighted in green. The numbers don't reflect the exact amount you will pay at the store because it assumes you'll buy 1kg of everything, but the smallest number is still going to be the cheapest.
 
-## The problem
+## The problem with the spreadsheet
 
 These work well enough but the problem is keeping them updated. Stores change their prices every Thursday, and they only list the sale items on their website; last week's specials are removed. You can spend a few hours each week entering the new prices into the spreadsheet by hand, but there's no way to know about stale price data. The only way to keep it up to date would be to visit every store with a notebook and pen every week, which is a ridiculous waste of time.
 
@@ -40,5 +45,3 @@ Eventually, it will be able to take an input like `1kg meat 2kg vegetables` and 
 2. Buy chicken thighs, zucchini, tomatoes, and cauliflower at Lidl for $otheramount.
 
 It might even search [Supercook](http://www.supercook.com) for recipes containing those ingredients.
-
-Alpha version coming soon. It's just pseudocode for now.
