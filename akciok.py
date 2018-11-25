@@ -42,13 +42,13 @@ def loadFiles():
     allFiles = {}
     for file in jsonFiles:
         with open(getDirectory() + file, "r") as f:
-            allFiles[file] = json.loads(f.readline().rstrip())
+            allFiles[os.path.splitext(file)[0]] = json.loads(f.readline().rstrip())
     return allFiles
 
 def saveFiles(files):
     '''Save everything we learned in json format for next time'''
     for file in files:
-        with open(getDirectory() + file, "w") as f:
+        with open(getDirectory() + file + '.json', "w") as f:
             f.write(json.dumps(files[file]))
 
 def setupFiles(files):
