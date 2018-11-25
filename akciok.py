@@ -126,6 +126,7 @@ def findCategories(website):
                         if not url.startswith('http'):
                             url = urllib.parse.urljoin(memory['websites'][website]['base'], url)
                         categoriesToSearch[catName] = url
+                        memory['categoryWhitelist'].append(catName)
                     else:
                         logging.debug(f"Blacklisting {catName}")
                         memory['categoryBlacklist'].append(catName)
