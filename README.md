@@ -8,6 +8,10 @@ Akciok is a repository for processing grocery store specials and making decision
 
 akciok.py is a work in progress. So far it builds a list of local grocery websites, scans these websites for categories, and learns which categories the user cares about.
 
+If you are using it for yourself, you may want to throw out the whitelists and blacklists in [files](https://github.com/youve/akciok/tree/master/files) because they contain sample data. If you don't live in Hungary, you may want to remove websites.json and parsewebsite.json too. akciok.py will walk you through setting those up for the websites you want to search. 
+
+The first time you run the program, it will take a while to learn what you care about and what you don't, but as it learns more about you and your preferences, each run will be faster.
+
 ### Spreadsheet and Python script
 `2018_prices.xlsx` is a spreadsheet that tracks how much various items cost at various stores in Hungary. It provides feedback on which food items provide the most calories / Hungarian Forint, the most potassium/serving, and which foods are the cheapest non-carbohydrate sources of energy.
 

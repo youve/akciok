@@ -62,10 +62,10 @@ def setupFiles(files):
     '''Create all the files we need'''
     logging.debug(f'Files: {files}')
     while not files['websites'] or again("Add a new website? [y/N]"):
-        siteName = input('Name of site: ')
-        baseURL = input('Base URL of site: ')
-        catsURL = input('Enter a URL to find categories: ')
-        urlTail = input('What should be appended to URLs from this site? (e.g. ?sort=cheapest')
+        siteName = input('Name of site (e.g. Lidl): ')
+        baseURL = input('Base URL of site (e.g. https://www.lidl.com): ')
+        catsURL = input('Enter a URL to find categories (e.g. https://www.lidl.com/specials): ')
+        urlTail = input('What should be appended to URLs from this site? (e.g. ?sort=cheapest):')
         files['websites'][siteName] = {'base' : baseURL, 'cats' : catsURL, 'tail' : urlTail}
     if 'parsewebsite' not in files.keys():
         files['parsewebsite'] = {}
@@ -90,6 +90,9 @@ def adjustWebsiteParser(website=None):
     if not website:
         website={}
     '''What tags to look for in each website + whether a bus pass is needed to access the store'''
+    print('''\nakciok.py needs to know how to find each category and each item on a page.
+        You will need to view-source on the webpage and find something unique that
+        BeautifulSoup.select can find. Look here if you need more help: https://www.crummy.com/software/BeautifulSoup/bs4/doc/index.html?highlight=select#css-selectors \n''')
     website['itemdelineator'] = input('Html to look for at the start of each item: ')
     website['unitprice'] = input('Html element for unitprice: ')
     website['kgprice'] = input('Html element for kgprice: ')
@@ -110,7 +113,8 @@ def again(msg='Again? [y/N]', default="no"):
 def findCategories(website):
     '''Returns a dictionary of categories to search: {name: url}'''
     logging.info(f'Finding categories in {website}')
-    res = requests.get(memory['websites'][website]['cats'])
+    websiteUrls = memory['websites'][website]
+    res = requests.get(websiteUrls['cats'])
     res.raise_for_status()
     websiteSoup = BeautifulSoup(res.text, "html.parser")
     cats = websiteSoup.select(memory['parsewebsite'][website]['categories'])
@@ -118,19 +122,25 @@ def findCategories(website):
     for cat in cats:
         catName = cat.getText().strip().lower()
         if catName not in memory['categoryBlacklist']:
+            care = True
             if catName not in memory['categoryWhitelist']:
                 if again(f"Do you care about {catName.capitalize()} [Y/n]", default="yes"):
-                    try:
-                        url = cat.attrs['href']
-                    except: #Penny
-                        url = memory['websites'][website]['cats'] + '?c=' + cats[0].input.attrs['value']
-                    if not url.startswith('http'):
-                        url = urllib.parse.urljoin(memory['websites'][website]['base'], url)
-                    categoriesToSearch[catName] = url
+                    logging.debug(f'Whitelisting {catName}')
                     memory['categoryWhitelist'].append(catName)
                 else:
+                    care = False
                     logging.debug(f"Blacklisting {catName}")
                     memory['categoryBlacklist'].append(catName)
+            if care:
+                if 'website' == 'penny':
+                    url = websiteUrls['cats'] + '?c=' + cats[0].input.attrs['value']
+                else:
+                    url = cat.attrs['href']
+                if not url.startswith('http'):
+                    url = urllib.parse.urljoin(websiteUrls['base'], url)
+                    logging.debug(f'url: {url}')
+                categoriesToSearch[catName] = url
+
     return categoriesToSearch
 
 def findItems(category):
