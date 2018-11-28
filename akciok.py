@@ -143,8 +143,34 @@ def findCategories(website):
 
     return categoriesToSearch
 
-def findItems(category):
+def findItems(cat, url):
     '''Returns a dictionary of items that might be bought'''
+    logging.info(f'Finding products in {cat} on {url}')
+    res = requests.get(url)
+    res.raise_for_status()
+    # It would probably be better to just track the website name in catsToSearch
+    # this will break if a website has a scheme like specials.storename.com
+    # which isn't the case in the websites i'm interested in.
+    #TODO: Do something about this later.
+    hostname = urllib.parse.urlparse(url).hostname
+    tldRegex = re.compile('\.\w+$')
+    website = re.sub(tldRegex, '', hostname)
+    websiteSoup = BeautifulSoup(res.text, "html.parser")
+    pages = websiteSoup.select(memory['parsewebsite'][website]['pageseparator'])
+    products = {}
+    for page in pages:
+        pageurl = page.attrs['href']
+        if not url.startswith('http'):
+            pageurl = urllib.parse.urljoin(pageurl, url)
+        itemdelineator = websiteSoup.select(memory['parsewebsite'][website]['itemdelineator'])
+        for index, items in enumerate(itemdelineator):
+            itemname = itemdelineator[index].select(memory['parsewebsite'][website]['itemname'])
+            kgprice = itemdelineator[index].select(memory['parsewebsite'][website]['kgprice'])
+            unitprice = itemdelineator[index].select(memory['parsewebsite'][website]['unitprice'])
+            products[itemname] = (kgprice, unitprice)
+            res = requests.get(pageurl) # get rid of this repetition
+            res.raise_for_status()
+            websiteSoup = BeautifulSoup(res.text, "html.parser")
 
 memory = setupFiles(loadFiles())
 logging.debug(pprint.pprint(memory))
@@ -152,8 +178,15 @@ catsToSearch = {}
 
 for website in memory['websites'].keys():
     catsToSearch[website] = findCategories(website)
+    again('Keep going? [Y/n', default="yes")
 
 logging.debug(f'catsToSearch: {catsToSearch}')
+
+interestingProducts = {}
+
+for category, url in catsToSearch.items():
+    interestingProducts.update(findItems(category, url))
+    again(f'Finished {category}. Keep going? [Y/n]', default="yes")
 
 #TODO: For each website
 
