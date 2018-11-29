@@ -111,7 +111,8 @@ def again(msg='Again? [y/N]', default="no"):
         return False
 
 def findCategories(website):
-    '''Returns a dictionary of categories to search: {name: url}'''
+    '''Returns a dictionary of categories to search: {catName: website, url}
+    e.g.: {"vegetables" : ("tesco", "https://www.tesco.com/specials/vegetables")}'''
     logging.info(f'Finding categories in {website}')
     websiteUrls = memory['websites'][website]
     res = requests.get(websiteUrls['cats'])
@@ -139,38 +140,82 @@ def findCategories(website):
                 if not url.startswith('http'):
                     url = urllib.parse.urljoin(websiteUrls['base'], url)
                     logging.debug(f'url: {url}')
-                categoriesToSearch[catName] = url
+                categoriesToSearch[catName] = (website, url)
 
     return categoriesToSearch
 
-def findItems(cat, url):
-    '''Returns a dictionary of items that might be bought'''
-    logging.info(f'Finding products in {cat} on {url}')
+def findPages(website, url):
+    '''Finds all pages in a given category at a URL and then returns a list of these pages'''
+    logging.info(f'Finding pages.')
+    pageurls = [url]
     res = requests.get(url)
     res.raise_for_status()
-    # It would probably be better to just track the website name in catsToSearch
-    # this will break if a website has a scheme like specials.storename.com
-    # which isn't the case in the websites i'm interested in.
-    #TODO: Do something about this later.
-    hostname = urllib.parse.urlparse(url).hostname
-    tldRegex = re.compile('\.\w+$')
-    website = re.sub(tldRegex, '', hostname)
     websiteSoup = BeautifulSoup(res.text, "html.parser")
+    #TODO: Does this work if there's only one page?
     pages = websiteSoup.select(memory['parsewebsite'][website]['pageseparator'])
+    for page in pages:
+        if page.attrs['href'].startswith('http'):
+            pageurls.append(page.attrs['href'])
+        else:
+            pageurls.append(urllib.parse.urljoin(website, page.attrs['href']))
+    return pageurls
+
+def findItems(cat, website, url):
+    '''Returns a dictionary of items that might be bought. 
+    Example: a 10g packet of basil that costs 99 forints:
+    {'basil' : ('9900', '99')}
+    '''
+    logging.info(f'Finding products in {cat} on {url}')
+    pages = findPages(website, url)
     products = {}
     for page in pages:
-        pageurl = page.attrs['href']
-        if not url.startswith('http'):
-            pageurl = urllib.parse.urljoin(pageurl, url)
+        res = requests.get(page)
+        res.raise_for_status()
         itemdelineator = websiteSoup.select(memory['parsewebsite'][website]['itemdelineator'])
         for index, items in enumerate(itemdelineator):
             itemname = itemdelineator[index].select(memory['parsewebsite'][website]['itemname'])
             kgprice = itemdelineator[index].select(memory['parsewebsite'][website]['kgprice'])
             unitprice = itemdelineator[index].select(memory['parsewebsite'][website]['unitprice'])
             products[itemname] = (kgprice, unitprice)
-            res = requests.get(pageurl) # get rid of this repetition
-            res.raise_for_status()
-            websiteSoup = BeautifulSoup(res.text, "html.parser")
+    return products
+
+def considerProducts(products):
+    '''Returns a dictionary of products to buy this week. Updates blacklists and whitelists.
+    interested = {'item' : ('kgprice', 'unitprice')}
+    '''
+    for product, (kgprice, unitprice) in products:
+        blacklisted = False
+        interested = {}
+        for item in memory[foodBlacklist]:
+            if item in product:
+                blacklisted = True
+                break
+        if blacklisted:
+            continue
+        if product in memory[foodWhitelist].keys():
+            if kgprice <= foodWhitelist[product]:
+                interested[product] = (kgprice, unitprice)
+            else:
+                continue
+        # Ask user what to do:
+        whatDo = input(f'''Are you interested in {product} for {unitprice}, {kgprice}/kg? 
+            [Y]es/[x 500] not at this e[x]pense; 500 is the max I'd pay for it/[b STRING] blacklist this string.''').lower()
+        if whatDo.startswith('x'):
+            match = re.search('\d+', whatDo)
+            while not match:
+                whatDo = input("Max you'd pay for this item: ")
+                match = re.search('\d+', whatDo)
+            memory[foodWhitelist][product] = int(match)
+        elif whatDo.startswith('b'):
+            match = re.search('(b )(.*)', whatDo)
+            while not match:
+                whatDo = input('Substring to blacklist. Type nothing to blacklist the whole string: ') or 'b ' + product
+                match = re.search('(b )(.*)', whatDo)
+            memory[foodBlacklist].append(match.groups[1])
+        else:
+            interested[product] = (kgprice, unitprice)
+            memory[foodWhitelist][product] = kgprice
+    return interested
 
 memory = setupFiles(loadFiles())
 logging.debug(pprint.pprint(memory))
@@ -184,9 +229,11 @@ logging.debug(f'catsToSearch: {catsToSearch}')
 
 interestingProducts = {}
 
-for category, url in catsToSearch.items():
-    interestingProducts.update(findItems(category, url))
+for category, (website, url) in catsToSearch.items():
+    interestingProducts.update(findItems(category, website, url))
     again(f'Finished {category}. Keep going? [Y/n]', default="yes")
+
+
 
 #TODO: For each website
 
