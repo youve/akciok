@@ -133,7 +133,7 @@ def findCategories(website):
                     logging.debug(f"Blacklisting {catName}")
                     memory['categoryBlacklist'].append(catName)
             if care:
-                if 'website' == 'penny':
+                if website == 'penny':
                     url = websiteUrls['cats'] + '?c=' + cats[0].input.attrs['value']
                 else:
                     url = cat.attrs['href']
@@ -223,15 +223,23 @@ catsToSearch = {}
 
 for website in memory['websites'].keys():
     catsToSearch[website] = findCategories(website)
-    again('Keep going? [Y/n', default="yes")
+    again('Keep going? [Y/n]', default="yes")
 
 logging.debug(f'catsToSearch: {catsToSearch}')
 
 interestingProducts = {}
 
-for category, (website, url) in catsToSearch.items():
-    interestingProducts.update(findItems(category, website, url))
-    again(f'Finished {category}. Keep going? [Y/n]', default="yes")
+for site in catsToSearch.keys():
+    for category, (website, url) in catsToSearch[site].items():
+        if website in interestingProducts.keys():
+            interestingProducts[website].update(considerProducts(findItems(category, website, url)))
+        else:
+            interestingProducts[website] = considerProducts(findItems(category, website, url))
+        if again(f'Finished {category}. Keep going? [Y/n]', default="yes"):
+            continue
+        else:
+            #save results for later
+            break
 
 
 
