@@ -6,17 +6,11 @@ import json
 import argparse
 import sys
 import os
-#import random
 import pprint
 import readline
 import requests
-#import getkey
 import urllib
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys    
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import logging
 
 #logging.disable()
@@ -141,7 +135,6 @@ def findCategories(website):
                     url = urllib.parse.urljoin(websiteUrls['base'], url)
                     logging.debug(f'url: {url}')
                 categoriesToSearch[catName] = (website, url)
-
     return categoriesToSearch
 
 def findPages(website, url):
@@ -152,7 +145,10 @@ def findPages(website, url):
     res.raise_for_status()
     websiteSoup = BeautifulSoup(res.text, "html.parser")
     #TODO: Does this work if there's only one page?
-    pages = websiteSoup.select(memory['parsewebsite'][website]['pageseparator'])
+    pageseparator = memory['parsewebsite'][website]['pageseparator']
+    if not pageseparator:
+        return pageurls
+    pages = websiteSoup.select(pageseparator)
     for page in pages:
         if page.attrs['href'].startswith('http'):
             pageurls.append(page.attrs['href'])
@@ -171,6 +167,7 @@ def findItems(cat, website, url):
     for page in pages:
         res = requests.get(page)
         res.raise_for_status()
+        websiteSoup = BeautifulSoup(res.text, "html.parser")
         itemdelineator = websiteSoup.select(memory['parsewebsite'][website]['itemdelineator'])
         for index, items in enumerate(itemdelineator):
             itemname = itemdelineator[index].select(memory['parsewebsite'][website]['itemname'])
@@ -224,7 +221,7 @@ catsToSearch = {}
 for website in memory['websites'].keys():
     catsToSearch[website] = findCategories(website)
     again('Keep going? [Y/n]', default="yes")
-
+saveFiles(memory)
 logging.debug(f'catsToSearch: {catsToSearch}')
 
 interestingProducts = {}
