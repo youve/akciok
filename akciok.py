@@ -12,6 +12,7 @@ import requests
 import urllib
 from bs4 import BeautifulSoup
 import logging
+import re
 
 #logging.disable()
 logging.basicConfig(level=logging.DEBUG, format='%(lineno)d - %(asctime)s - %(levelname)s - %(message)s') #filename=f'log-akciok.txt', 
@@ -164,15 +165,20 @@ def findItems(cat, website, url):
     logging.info(f'Finding products in {cat} on {url}')
     pages = findPages(website, url)
     products = {}
+    priceRegex = re.compile("\d+")
     for page in pages:
         res = requests.get(page)
         res.raise_for_status()
         websiteSoup = BeautifulSoup(res.text, "html.parser")
         itemdelineator = websiteSoup.select(memory['parsewebsite'][website]['itemdelineator'])
         for index, items in enumerate(itemdelineator):
+            #sometimes getting index out of range. why?
             itemname = itemdelineator[index].select(memory['parsewebsite'][website]['itemname'])
+            itemname = itemname[index].text.strip().replace('\xa0', ' ')
             kgprice = itemdelineator[index].select(memory['parsewebsite'][website]['kgprice'])
+            kgprice = priceRegex.search(kgprice[index].text).group()
             unitprice = itemdelineator[index].select(memory['parsewebsite'][website]['unitprice'])
+            unitprice = int(unitprice[index].text.replace(' ', ''))
             products[itemname] = (kgprice, unitprice)
     return products
 
@@ -220,7 +226,7 @@ catsToSearch = {}
 
 for website in memory['websites'].keys():
     catsToSearch[website] = findCategories(website)
-    again('Keep going? [Y/n]', default="yes")
+    #again('Keep going? [Y/n]', default="yes")
 saveFiles(memory)
 logging.debug(f'catsToSearch: {catsToSearch}')
 
