@@ -56,7 +56,7 @@ def saveFiles(files):
 def setupFiles(files):
     '''Create all the files we need'''
     logging.debug(f'Files: {files}')
-    while not files['websites'] or again("Add a new website? [y/N]"):
+    while not files['websites']: # or again("Add a new website? [y/N]"):
         siteName = input('Name of site (e.g. Lidl): ')
         baseURL = input('Base URL of site (e.g. https://www.lidl.com): ')
         catsURL = input('Enter a URL to find categories (e.g. https://www.lidl.com/specials): ')
@@ -165,59 +165,85 @@ def findItems(cat, website, url):
     logging.info(f'Finding products in {cat} on {url}')
     pages = findPages(website, url)
     products = {}
-    priceRegex = re.compile("\d+")
+    priceRegex = re.compile("\D")
     for page in pages:
         res = requests.get(page)
         res.raise_for_status()
         websiteSoup = BeautifulSoup(res.text, "html.parser")
         itemdelineator = websiteSoup.select(memory['parsewebsite'][website]['itemdelineator'])
         for index, items in enumerate(itemdelineator):
-            #sometimes getting index out of range. why?
+            logging.debug(items)
             itemname = itemdelineator[index].select(memory['parsewebsite'][website]['itemname'])
-            itemname = itemname[index].text.strip().replace('\xa0', ' ')
-            kgprice = itemdelineator[index].select(memory['parsewebsite'][website]['kgprice'])
-            kgprice = priceRegex.search(kgprice[index].text).group()
+            itemname = itemname[0].text.strip().replace('\xa0', ' ')
             unitprice = itemdelineator[index].select(memory['parsewebsite'][website]['unitprice'])
-            unitprice = int(unitprice[index].text.replace(' ', ''))
+            unitprice = re.sub(priceRegex, '', unitprice[0].text)
+            kgprice = itemdelineator[index].select(memory['parsewebsite'][website]['kgprice'])
+            kgprice = parseKgPrice(kgprice, unitprice, website)
             products[itemname] = (kgprice, unitprice)
     return products
+
+def parseKgPrice(kgprice, unitprice, website):
+    priceRegex = re.compile("\D")
+    kgDigits = int(re.sub(priceRegex, '', kgprice[0].text))
+    if website == 'auchan':
+        if any(("ft/kg", "ft/db", "ft/l")) in kgprice[0].lower():
+            return unitprice
+        elif "dkg" in kgprice.lower():
+            return unitprice / kgDigits * 100
+        elif "kg" in kgprice.lower():
+            return unitprice / kgDigits
+        elif "g" in kgprice.lower():
+            return unitprice / kgDigits * 1000
+        elif "dl" in kgprice.lower():
+            return unitprice / kgDigits * 10
+        else:
+            raise(f"Can't parse {kgprice}")
+    if website == 'aldi':
+        return kgDigits
+    else: #maybe the others are okay
+        return kgDigits
 
 def considerProducts(products):
     '''Returns a dictionary of products to buy this week. Updates blacklists and whitelists.
     interested = {'item' : ('kgprice', 'unitprice')}
     '''
-    for product, (kgprice, unitprice) in products:
+    logging.debug(products)
+    for product in products.keys():
+        kgprice = products[product][0]
+        unitprice = products[product][1]
         blacklisted = False
         interested = {}
-        for item in memory[foodBlacklist]:
-            if item in product:
+        for item in memory['foodBlacklist']:
+            if item.lower() in product.lower():
                 blacklisted = True
                 break
         if blacklisted:
             continue
-        if product in memory[foodWhitelist].keys():
-            if kgprice <= foodWhitelist[product]:
+        if product in memory['foodWhitelist'].keys():
+            print(f'{product} costs {kgprice} and is remember as costing {memory["foodWhitelist"][product]}')
+            print(f'Product is a {type(product)}, kgprice is a {type(kgprice)} and is remember as a {type(memory["foodWhitelist"][product])}')
+            if kgprice <= memory['foodWhitelist'][product]:
                 interested[product] = (kgprice, unitprice)
             else:
                 continue
         # Ask user what to do:
         whatDo = input(f'''Are you interested in {product} for {unitprice}, {kgprice}/kg? 
-            [Y]es/[x 500] not at this e[x]pense; 500 is the max I'd pay for it/[b STRING] blacklist this string.''').lower()
+            [Y]es/[x 500] not at this e[x]pense; 500 is the max I'd pay for it/[b STRING] blacklist this string. ''').lower()
         if whatDo.startswith('x'):
             match = re.search('\d+', whatDo)
             while not match:
                 whatDo = input("Max you'd pay for this item: ")
                 match = re.search('\d+', whatDo)
-            memory[foodWhitelist][product] = int(match)
+            memory['foodWhitelist'][product] = int(match.group())
         elif whatDo.startswith('b'):
             match = re.search('(b )(.*)', whatDo)
             while not match:
                 whatDo = input('Substring to blacklist. Type nothing to blacklist the whole string: ') or 'b ' + product
                 match = re.search('(b )(.*)', whatDo)
-            memory[foodBlacklist].append(match.groups[1])
+            memory['foodBlacklist'].append(match.groups()[1])
         else:
             interested[product] = (kgprice, unitprice)
-            memory[foodWhitelist][product] = kgprice
+            memory['foodWhitelist'][product] = kgprice
     return interested
 
 memory = setupFiles(loadFiles())
@@ -241,6 +267,7 @@ for site in catsToSearch.keys():
         if again(f'Finished {category}. Keep going? [Y/n]', default="yes"):
             continue
         else:
+            saveFiles(memory)
             #save results for later
             break
 
