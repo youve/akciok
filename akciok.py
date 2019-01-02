@@ -165,37 +165,50 @@ def findItems(cat, website, url):
     logging.info(f'Finding products in {cat} on {url}')
     pages = findPages(website, url)
     products = {}
-    priceRegex = re.compile("\D")
+    priceRegex = re.compile("[^0-9,.]")
     for page in pages:
         res = requests.get(page)
         res.raise_for_status()
         websiteSoup = BeautifulSoup(res.text, "html.parser")
+        # instead of this, get the url for each item and go into it
         itemdelineator = websiteSoup.select(memory['parsewebsite'][website]['itemdelineator'])
         for index, items in enumerate(itemdelineator):
             logging.debug(items)
             itemname = itemdelineator[index].select(memory['parsewebsite'][website]['itemname'])
             itemname = itemname[0].text.strip().replace('\xa0', ' ')
             unitprice = itemdelineator[index].select(memory['parsewebsite'][website]['unitprice'])
-            unitprice = re.sub(priceRegex, '', unitprice[0].text)
+            unitprice = int(re.sub(priceRegex, '', unitprice[0].text))
             kgprice = itemdelineator[index].select(memory['parsewebsite'][website]['kgprice'])
-            kgprice = parseKgPrice(kgprice, unitprice, website)
+            logging.debug(memory['parsewebsite'][website]['kgprice'])
+            logging.debug(kgprice[0])
+            kgprice = parseKgPrice(kgprice[0], unitprice, website)
             products[itemname] = (kgprice, unitprice)
     return products
 
 def parseKgPrice(kgprice, unitprice, website):
-    priceRegex = re.compile("\D")
-    kgDigits = int(re.sub(priceRegex, '', kgprice[0].text))
+    kgDigits = re.sub(',', '.', kgprice.text)
+    priceRegex = re.compile("[^0-9.]")
+    addRegex = re.compile('(\d+)(\+)(\d+)')
+    add = re.search(addRegex, kgprice.text)
+    if kgDigits.replace('.','',1).isdigit(): #at most one decimal point
+        kgDigits = round(float(re.sub(priceRegex, '', kgDigits)))
+    elif add:
+        return unitprice / (int(add.groups()[0]) + int(add.groups()[2]))
+    else: 
+        print(f"{kgprice.text} isn't a price.")
+        kgDigits = 1 # if it gets to the division part, dividing by 1 should do nothing.
     if website == 'auchan':
-        if any(("ft/kg", "ft/db", "ft/l")) in kgprice[0].lower():
+        logging.debug(kgprice.text)
+        if any(x in kgprice.text.lower() for x in ["ft/kg", "ft/db", "ft/l", "ft/szett"]):
             return unitprice
         elif "dkg" in kgprice.lower():
-            return unitprice / kgDigits * 100
+            return round(unitprice / kgDigits * 100)
         elif "kg" in kgprice.lower():
-            return unitprice / kgDigits
+            return round(unitprice / kgDigits)
         elif "g" in kgprice.lower():
-            return unitprice / kgDigits * 1000
+            return round(unitprice / kgDigits * 1000)
         elif "dl" in kgprice.lower():
-            return unitprice / kgDigits * 10
+            return round(unitprice / kgDigits * 10)
         else:
             raise(f"Can't parse {kgprice}")
     if website == 'aldi':
@@ -208,11 +221,11 @@ def considerProducts(products):
     interested = {'item' : ('kgprice', 'unitprice')}
     '''
     logging.debug(products)
+    interested = {}
     for product in products.keys():
         kgprice = products[product][0]
         unitprice = products[product][1]
         blacklisted = False
-        interested = {}
         for item in memory['foodBlacklist']:
             if item.lower() in product.lower():
                 blacklisted = True
@@ -224,8 +237,7 @@ def considerProducts(products):
             print(f'Product is a {type(product)}, kgprice is a {type(kgprice)} and is remember as a {type(memory["foodWhitelist"][product])}')
             if kgprice <= memory['foodWhitelist'][product]:
                 interested[product] = (kgprice, unitprice)
-            else:
-                continue
+            continue
         # Ask user what to do:
         whatDo = input(f'''Are you interested in {product} for {unitprice}, {kgprice}/kg? 
             [Y]es/[x 500] not at this e[x]pense; 500 is the max I'd pay for it/[b STRING] blacklist this string. ''').lower()
